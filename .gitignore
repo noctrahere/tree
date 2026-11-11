@@ -5,3 +5,7 @@ node_modules/
 npm-debug.log*
 .DS_Store
 data/
+
+# Per-server Tree settings (keep backed up / on persistent host storage)
+tree-data.json
+tree-data.json.tmp

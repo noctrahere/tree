@@ -13,7 +13,7 @@ Tree is an all-in-one bot for LinkupHQ. This is the first runnable foundation, b
 - /roll — roll a dice
 - /about — information about Tree
 - /server — show server details
-- Optional welcome message when a member joins
+- Logs member joins across servers (per-server welcome configuration will be added separately)
 
 ## Requirements
 
@@ -47,7 +47,6 @@ Use a Node.js host that supports long-running processes and outbound HTTPS conne
 
 - LINKUP_TOKEN — your bot token
 - LINKUP_URL — your LinkupHQ site URL
-- WELCOME_CHANNEL_ID — optional channel ID for welcome messages
 
 Set the start command to npm start or node bot.js. Do not use a serverless function or a host that sleeps, because Tree must keep its event stream open to appear online.
 
@@ -60,7 +59,7 @@ In the Developer Portal:
 3. Enable Message Content only if you later add message-reading features.
 4. Invite Tree with the permissions it needs. For this starter, it needs View Channels and Send Messages.
 
-To enable welcome messages, copy the ID of the channel where Tree should welcome members and set WELCOME_CHANNEL_ID.
+Tree is designed to be installed in multiple servers. A single global welcome-channel setting is intentionally not used, because it would send members from different servers into one fixed channel. Per-server welcome-channel configuration needs server-specific settings storage and will be added separately.
 
 ## Important API limitations
 

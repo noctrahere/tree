@@ -1,5 +1,26 @@
 'use strict';
 
+const fs = require('node:fs');
+
+// Load a local .env file when present. Real environment variables take priority.
+try {
+  const envFile = fs.readFileSync('.env', 'utf8');
+  for (const line of envFile.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const separator = trimmed.indexOf('=');
+    if (separator < 1) continue;
+    const key = trimmed.slice(0, separator).trim();
+    let value = trimmed.slice(separator + 1).trim();
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1);
+    }
+    if (process.env[key] === undefined) process.env[key] = value;
+  }
+} catch (error) {
+  if (error.code !== 'ENOENT') throw error;
+}
+
 const BASE_URL = (process.env.LINKUP_URL || 'https://getlinkup.pages.dev').replace(/\/+$/, '');
 const TOKEN = process.env.LINKUP_TOKEN;
 const WELCOME_CHANNEL_ID = process.env.WELCOME_CHANNEL_ID || '';

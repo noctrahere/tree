@@ -91,6 +91,7 @@ const commands = [
   { name: 'ping', description: 'Check whether Tree is responding' },
   { name: 'echo', description: 'Make Tree repeat a message', options: [{ name: 'text', description: 'The message Tree should repeat', required: true }] },
   { name: 'roll', description: 'Roll a dice', options: [{ name: 'sides', description: 'Number of sides (default 6)', required: false }] },
+  { name: 'setup', description: 'Open this server’s Tree setup panel' },
   { name: 'about', description: 'Learn about Tree' },
   { name: 'server', description: 'Show the current server information' },
   { name: 'welcome-set', description: 'Set this server’s welcome channel', options: [{ name: 'channel', description: 'Channel ID for welcome messages', required: true }] },
@@ -190,6 +191,40 @@ async function handleInteraction(event) {
         delete settingsFor(event.serverId).goodbyeChannelId;
         saveSettings();
         await reply(event.id, 'Goodbye messages have been disabled for this server.', true);
+        break;
+      }
+      case 'setup': {
+        if (!event.serverId) {
+          await reply(event.id, '⚙️ The setup panel can only be opened inside a server.', true);
+          break;
+        }
+        const settings = serverSettings[event.serverId] || {};
+        const channel = (id) => id ? '<#' + id + '>  `' + id + '`' : '`Not set`';
+        const status = (enabled) => enabled ? '🟢 Enabled' : '⚪ Disabled';
+        const panel =
+          '⚙️ **Tree Setup**\\n' +
+          'Server-specific configuration for **' + (event.serverName || 'this server') + '**.\\n' +
+          'Changes made here apply only to this server.\\n\\n' +
+          '👋 **WELCOME**\\n' +
+          'Channel: ' + channel(settings.welcomeChannelId) + '\\n' +
+          'Commands: `/welcome-set`, `/welcome-test`, `/welcome-off`\\n\\n' +
+          '🚪 **GOODBYE**\\n' +
+          'Channel: ' + channel(settings.goodbyeChannelId) + '\\n' +
+          'Commands: `/goodbye-set`, `/goodbye-off`\\n\\n' +
+          '📋 **LOGGING**\\n' +
+          '⚪ Not available yet\\n\\n' +
+          '✅ **VERIFICATION**\\n' +
+          '⚪ Not available yet\\n\\n' +
+          '🎫 **TICKETS**\\n' +
+          '⚪ Not available yet\\n\\n' +
+          '🎁 **GIVEAWAYS**\\n' +
+          '⚪ Not available yet\\n\\n' +
+          '👥 **ROLES / AUTOROLE**\\n' +
+          '⚪ Not available yet\\n\\n' +
+          '📈 **LEVELING**\\n' +
+          '⚪ Not available yet\\n\\n' +
+          '🌳 Use `/setup` again to view the latest settings.';
+        await reply(event.id, panel, true);
         break;
       }
       case 'about':

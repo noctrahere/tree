@@ -35,6 +35,30 @@ let botInfo = null;
 let stopping = false;
 let streamController = null;
 
+const DATA_FILE = process.env.TREE_DATA_FILE || './tree-data.json';
+let serverSettings = {};
+try {
+  serverSettings = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+  if (!serverSettings || typeof serverSettings !== 'object' || Array.isArray(serverSettings)) serverSettings = {};
+} catch (error) {
+  if (error.code !== 'ENOENT') console.error('Could not load Tree settings:', error.message);
+}
+function saveSettings() {
+  const tempFile = DATA_FILE + '.tmp';
+  fs.writeFileSync(tempFile, JSON.stringify(serverSettings, null, 2));
+  fs.renameSync(tempFile, DATA_FILE);
+}
+function settingsFor(serverId) {
+  if (!serverId) return null;
+  if (!serverSettings[serverId]) serverSettings[serverId] = {};
+  return serverSettings[serverId];
+}
+function optionText(options, name, fallback) {
+  const value = getOption(options, name, fallback);
+  if (value && typeof value === 'object') return value.id || value.value || value.name || fallback;
+  return value;
+}
+
 async function api(path, options) {
   const response = await fetch(API + path, {
     ...(options || {}),
@@ -69,6 +93,9 @@ const commands = [
   { name: 'roll', description: 'Roll a dice', options: [{ name: 'sides', description: 'Number of sides (default 6)', required: false }] },
   { name: 'about', description: 'Learn about Tree' },
   { name: 'server', description: 'Show the current server information' },
+  { name: 'welcome-set', description: 'Set this server’s welcome channel', options: [{ name: 'channel', description: 'Channel ID for welcome messages', required: true }] },
+  { name: 'welcome-off', description: 'Disable welcome messages in this server' },
+  { name: 'welcome-test', description: 'Preview this server’s welcome message' },
 ];
 
 function getOption(options, name, fallback) {
@@ -112,6 +139,38 @@ async function handleInteraction(event) {
         await reply(event.id, '🎲 You rolled **' + result + '** (1–' + sides + ').', true);
         break;
       }
+      case 'welcome-set': {
+        if (!event.serverId) { await reply(event.id, 'This command can only be used inside a server.', true); break; }
+        const channelId = String(optionText(options, 'channel', '')).trim().replace(/[<#>]/g, '');
+        if (!/^\d{5,30}$/.test(channelId)) {
+          await reply(event.id, 'Please provide a valid channel ID (or mention the channel).', true);
+          break;
+        }
+        const settings = settingsFor(event.serverId);
+        settings.welcomeChannelId = channelId;
+        saveSettings();
+        await reply(event.id, '🌳 Welcome messages are now enabled in <#' + channelId + '> for this server.', true);
+        break;
+      }
+      case 'welcome-off': {
+        if (!event.serverId) { await reply(event.id, 'This command can only be used inside a server.', true); break; }
+        const settings = settingsFor(event.serverId);
+        delete settings.welcomeChannelId;
+        saveSettings();
+        await reply(event.id, 'Welcome messages have been disabled for this server.', true);
+        break;
+      }
+      case 'welcome-test': {
+        if (!event.serverId) { await reply(event.id, 'This command can only be used inside a server.', true); break; }
+        const settings = settingsFor(event.serverId);
+        if (!settings || !settings.welcomeChannelId) {
+          await reply(event.id, 'No welcome channel is configured. Use /welcome-set first.', true);
+          break;
+        }
+        await postMessage(settings.welcomeChannelId, '🌳 Welcome! This is a preview of Tree’s welcome message.');
+        await reply(event.id, 'Sent a welcome preview.', true);
+        break;
+      }
       case 'about':
         await reply(event.id, '🌳 **Tree** is an all-in-one LinkupHQ bot, built to bring useful server tools together in one place.', true);
         break;
@@ -149,7 +208,16 @@ async function handleEvent(name, event) {
   if (name === 'member_join') {
     const user = event.user || {};
     const nameText = displayName(user);
-    console.log('Member joined:', nameText, 'in server', event.serverId || 'unknown');
+    const serverId = event.serverId;
+    console.log('Member joined:', nameText, 'in server', serverId || 'unknown');
+    const settings = serverId && serverSettings[serverId];
+    if (settings && settings.welcomeChannelId) {
+      try {
+        await postMessage(settings.welcomeChannelId, '🌳 Welcome to the server, **' + nameText.replace(/[@\\*_~`|]/g, '') + '**! We’re glad you’re here.');
+      } catch (error) {
+        console.error('Could not send welcome message for server ' + serverId + ':', error.message);
+      }
+    }
   }
   if (name === 'server_join') {
     console.log('Tree was added to a server:', event.name || event.id || 'unknown');

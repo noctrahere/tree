@@ -200,29 +200,28 @@ async function handleInteraction(event) {
         }
         const settings = serverSettings[event.serverId] || {};
         const channel = (id) => id ? '<#' + id + '>  `' + id + '`' : '`Not set`';
-        const status = (enabled) => enabled ? '🟢 Enabled' : '⚪ Disabled';
         const panel =
-          '⚙️ **Tree Setup**\\n' +
-          'Server-specific configuration for **' + (event.serverName || 'this server') + '**.\\n' +
-          'Changes made here apply only to this server.\\n\\n' +
-          '👋 **WELCOME**\\n' +
-          'Channel: ' + channel(settings.welcomeChannelId) + '\\n' +
-          'Commands: `/welcome-set`, `/welcome-test`, `/welcome-off`\\n\\n' +
-          '🚪 **GOODBYE**\\n' +
-          'Channel: ' + channel(settings.goodbyeChannelId) + '\\n' +
-          'Commands: `/goodbye-set`, `/goodbye-off`\\n\\n' +
-          '📋 **LOGGING**\\n' +
-          '⚪ Not available yet\\n\\n' +
-          '✅ **VERIFICATION**\\n' +
-          '⚪ Not available yet\\n\\n' +
-          '🎫 **TICKETS**\\n' +
-          '⚪ Not available yet\\n\\n' +
-          '🎁 **GIVEAWAYS**\\n' +
-          '⚪ Not available yet\\n\\n' +
-          '👥 **ROLES / AUTOROLE**\\n' +
-          '⚪ Not available yet\\n\\n' +
-          '📈 **LEVELING**\\n' +
-          '⚪ Not available yet\\n\\n' +
+          '⚙️ **Tree Setup**\n' +
+          'Server-specific configuration for **' + (event.serverName || 'this server') + '**.\n' +
+          'Changes made here apply only to this server.\n\n' +
+          '👋 **WELCOME**\n' +
+          'Channel: ' + channel(settings.welcomeChannelId) + '\n' +
+          'Commands: `/welcome-set`, `/welcome-test`, `/welcome-off`\n\n' +
+          '🚪 **GOODBYE**\n' +
+          'Channel: ' + channel(settings.goodbyeChannelId) + '\n' +
+          'Commands: `/goodbye-set`, `/goodbye-off`\n\n' +
+          '📋 **LOGGING**\n' +
+          '⚪ Not available yet\n\n' +
+          '✅ **VERIFICATION**\n' +
+          '⚪ Not available yet\n\n' +
+          '🎫 **TICKETS**\n' +
+          '⚪ Not available yet\n\n' +
+          '🎁 **GIVEAWAYS**\n' +
+          '⚪ Not available yet\n\n' +
+          '👥 **ROLES / AUTOROLE**\n' +
+          '⚪ Not available yet\n\n' +
+          '📈 **LEVELING**\n' +
+          '⚪ Not available yet\n\n' +
           '🌳 Use `/setup` again to view the latest settings.';
         await reply(event.id, panel, true);
         break;

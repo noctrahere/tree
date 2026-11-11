@@ -96,6 +96,8 @@ const commands = [
   { name: 'welcome-set', description: 'Set this server’s welcome channel', options: [{ name: 'channel', description: 'Channel ID for welcome messages', required: true }] },
   { name: 'welcome-off', description: 'Disable welcome messages in this server' },
   { name: 'welcome-test', description: 'Preview this server’s welcome message' },
+  { name: 'goodbye-set', description: 'Set this server’s goodbye channel', options: [{ name: 'channel', description: 'Channel ID for goodbye messages', required: true }] },
+  { name: 'goodbye-off', description: 'Disable goodbye messages in this server' },
 ];
 
 function getOption(options, name, fallback) {
@@ -171,6 +173,25 @@ async function handleInteraction(event) {
         await reply(event.id, 'Sent a welcome preview.', true);
         break;
       }
+      case 'goodbye-set': {
+        if (!event.serverId) { await reply(event.id, 'This command can only be used inside a server.', true); break; }
+        const channelId = String(optionText(options, 'channel', '')).trim().replace(/[<#>]/g, '');
+        if (!/^\d{5,30}$/.test(channelId)) {
+          await reply(event.id, 'Please provide a valid channel ID (or mention the channel).', true);
+          break;
+        }
+        settingsFor(event.serverId).goodbyeChannelId = channelId;
+        saveSettings();
+        await reply(event.id, '🌳 Goodbye messages are now enabled in <#' + channelId + '> for this server.', true);
+        break;
+      }
+      case 'goodbye-off': {
+        if (!event.serverId) { await reply(event.id, 'This command can only be used inside a server.', true); break; }
+        delete settingsFor(event.serverId).goodbyeChannelId;
+        saveSettings();
+        await reply(event.id, 'Goodbye messages have been disabled for this server.', true);
+        break;
+      }
       case 'about':
         await reply(event.id, '🌳 **Tree** is an all-in-one LinkupHQ bot, built to bring useful server tools together in one place.', true);
         break;
@@ -216,6 +237,20 @@ async function handleEvent(name, event) {
         await postMessage(settings.welcomeChannelId, '🌳 Welcome to the server, **' + nameText.replace(/[@\\*_~`|]/g, '') + '**! We’re glad you’re here.');
       } catch (error) {
         console.error('Could not send welcome message for server ' + serverId + ':', error.message);
+      }
+    }
+  }
+  if (name === 'member_leave') {
+    const user = event.user || {};
+    const nameText = displayName(user);
+    const serverId = event.serverId;
+    console.log('Member left:', nameText, 'in server', serverId || 'unknown');
+    const settings = serverId && serverSettings[serverId];
+    if (settings && settings.goodbyeChannelId) {
+      try {
+        await postMessage(settings.goodbyeChannelId, '👋 **' + nameText.replace(/[@\\*_~`|]/g, '') + '** has left the server.');
+      } catch (error) {
+        console.error('Could not send goodbye message for server ' + serverId + ':', error.message);
       }
     }
   }

@@ -1,0 +1,13 @@
+{
+  "name": "tree-linkuphq-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tree — an all-in-one bot for LinkupHQ",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

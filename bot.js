@@ -23,7 +23,6 @@ try {
 
 const BASE_URL = (process.env.LINKUP_URL || 'https://getlinkup.pages.dev').replace(/\/+$/, '');
 const TOKEN = process.env.LINKUP_TOKEN;
-const WELCOME_CHANNEL_ID = process.env.WELCOME_CHANNEL_ID || '';
 const API = BASE_URL + '/api';
 
 if (!TOKEN) {
@@ -151,10 +150,6 @@ async function handleEvent(name, event) {
     const user = event.user || {};
     const nameText = displayName(user);
     console.log('Member joined:', nameText, 'in server', event.serverId || 'unknown');
-    if (WELCOME_CHANNEL_ID) {
-      try { await postMessage(WELCOME_CHANNEL_ID, '🌱 Welcome, **' + nameText + '**! We are glad you are here.'); }
-      catch (error) { console.error('Welcome message failed:', error.message); }
-    }
   }
   if (name === 'server_join') {
     console.log('Tree was added to a server:', event.name || event.id || 'unknown');

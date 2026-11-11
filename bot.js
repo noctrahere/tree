@@ -62,7 +62,7 @@ function displayName(user) {
 }
 
 async function handleInteraction(event) {
-  const command = String(event.command || '').replace(/^\\//, '').toLowerCase();
+  const command = String(event.command || '').replace(/^\//, '').toLowerCase();
   const options = event.options || {};
   try {
     switch (command) {
@@ -71,9 +71,9 @@ async function handleInteraction(event) {
         break;
       case 'help':
         await reply(event.id,
-          '🌳 **Tree — All-in-one LinkupHQ bot**\\n' +
-          '/help — Show commands\\n/ping — Check bot status\\n/echo text — Repeat a message\\n' +
-          '/roll sides — Roll a dice\\n/about — About Tree\\n/server — Server information\\n\\n' +
+          '🌳 **Tree — All-in-one LinkupHQ bot**\n' +
+          '/help — Show commands\n/ping — Check bot status\n/echo text — Repeat a message\n' +
+          '/roll sides — Roll a dice\n/about — About Tree\n/server — Server information\n\n' +
           'More moderation, welcome, tickets and leveling features are planned.', true);
         break;
       case 'echo': {
@@ -103,8 +103,8 @@ async function handleInteraction(event) {
           break;
         }
         const channelCount = Array.isArray(server.channels) ? server.channels.length : 0;
-        await reply(event.id, '🏡 **' + (server.name || 'Server') + '**\\nServer ID: ' + server.id +
-          '\\nChannels visible to Tree: ' + channelCount, true);
+        await reply(event.id, '🏡 **' + (server.name || 'Server') + '**\nServer ID: ' + server.id +
+          '\nChannels visible to Tree: ' + channelCount, true);
         break;
       }
       default:
@@ -143,12 +143,12 @@ async function handleEvent(name, event) {
 function parseSSEBlock(block) {
   let eventName = 'message';
   const dataLines = [];
-  for (const line of block.split(/\\r?\\n/)) {
+  for (const line of block.split(/\r?\n/)) {
     if (line.startsWith('event:')) eventName = line.slice(6).trim();
     else if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
   }
   if (!dataLines.length) return null;
-  try { return { eventName, data: JSON.parse(dataLines.join('\\n')) }; }
+  try { return { eventName, data: JSON.parse(dataLines.join('\n')) }; }
   catch (error) {
     console.error('Could not parse event data:', error.message);
     return null;
@@ -175,9 +175,9 @@ async function connectStream() {
         if (result.done) break;
         buffer += decoder.decode(result.value, { stream: true });
         let boundary;
-        while ((boundary = buffer.search(/\\r?\\n\\r?\\n/)) !== -1) {
+        while ((boundary = buffer.search(/\r?\n\r?\n/)) !== -1) {
           const block = buffer.slice(0, boundary);
-          const separator = buffer.slice(boundary).match(/^\\r?\\n\\r?\\n/)[0];
+          const separator = buffer.slice(boundary).match(/^\r?\n\r?\n/)[0];
           buffer = buffer.slice(boundary + separator.length);
           const parsed = parseSSEBlock(block);
           if (parsed) {
@@ -216,7 +216,7 @@ async function start() {
 function shutdown(signal) {
   if (stopping) return;
   stopping = true;
-  console.log('\\nReceived ' + signal + '. Shutting down Tree...');
+  console.log('\nReceived ' + signal + '. Shutting down Tree...');
   if (streamController) streamController.abort();
 }
 process.on('SIGINT', function () { shutdown('SIGINT'); });

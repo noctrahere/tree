@@ -13,6 +13,7 @@ Tree is an all-in-one bot for LinkupHQ. This is the first runnable foundation, b
 - /roll — roll a dice
 - /about — information about Tree
 - /server — show server details
+- /setup — show a Panda-style, per-server setup overview for welcome, goodbye and planned modules
 - Per-server welcome channels with `/welcome-set`, `/welcome-off` and `/welcome-test`
 - Per-server goodbye channels with `/goodbye-set` and `/goodbye-off`
 - Automatically sends a welcome message when a member joins (Server Members intent required)
@@ -62,7 +63,7 @@ In the Developer Portal:
 3. Enable Message Content only if you later add message-reading features.
 4. Invite Tree with the permissions it needs. For this starter, it needs View Channels and Send Messages.
 
-Tree is designed to be installed in multiple servers. Each server has its own welcome channel. In a server, run `/welcome-set` and provide the channel ID (or channel mention), `/welcome-test` to preview it, and `/welcome-off` to disable it. Configure departure messages with `/goodbye-set` and disable them with `/goodbye-off`. Enable the Server Members intent in the LinkupHQ Developer Portal for join events. Settings are stored in `tree-data.json` on the bot host; keep that file on persistent storage when deploying so settings survive restarts and redeployments.
+Run `/setup` in a server to view its Panda-style configuration overview. The panel shows each module’s current status and the commands available for configured features. LinkupHQ’s documented bot API does not currently expose interactive button/select-menu callbacks, so this is a text-based panel rather than Panda’s clickable Discord panel.\n\nTree is designed to be installed in multiple servers. Each server has its own welcome channel. In a server, run `/welcome-set` and provide the channel ID (or channel mention), `/welcome-test` to preview it, and `/welcome-off` to disable it. Configure departure messages with `/goodbye-set` and disable them with `/goodbye-off`. Enable the Server Members intent in the LinkupHQ Developer Portal for join events. Settings are stored in `tree-data.json` on the bot host; keep that file on persistent storage when deploying so settings survive restarts and redeployments.
 
 ## Important API limitations
 

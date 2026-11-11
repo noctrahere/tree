@@ -13,7 +13,9 @@ Tree is an all-in-one bot for LinkupHQ. This is the first runnable foundation, b
 - /roll — roll a dice
 - /about — information about Tree
 - /server — show server details
-- Logs member joins across servers (per-server welcome configuration will be added separately)
+- Per-server welcome channels with `/welcome-set`, `/welcome-off` and `/welcome-test`
+- Automatically sends a welcome message when a member joins (Server Members intent required)
+- Stores each server’s settings separately in `tree-data.json`
 
 ## Requirements
 
@@ -59,7 +61,7 @@ In the Developer Portal:
 3. Enable Message Content only if you later add message-reading features.
 4. Invite Tree with the permissions it needs. For this starter, it needs View Channels and Send Messages.
 
-Tree is designed to be installed in multiple servers. A single global welcome-channel setting is intentionally not used, because it would send members from different servers into one fixed channel. Per-server welcome-channel configuration needs server-specific settings storage and will be added separately.
+Tree is designed to be installed in multiple servers. Each server has its own welcome channel. In a server, run `/welcome-set` and provide the channel ID (or channel mention), `/welcome-test` to preview it, and `/welcome-off` to disable it. Enable the Server Members intent in the LinkupHQ Developer Portal for join events. Settings are stored in `tree-data.json` on the bot host; keep that file on persistent storage when deploying so settings survive restarts and redeployments.
 
 ## Important API limitations
 

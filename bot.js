@@ -351,8 +351,52 @@ async function connectStream() {
   }
 }
 
+function startTerminalCommands() {
+  if (!process.stdin.isTTY) return;
+  const readline = require('node:readline');
+  const terminal = readline.createInterface({ input: process.stdin, output: process.stdout });
+  console.log('\nTerminal commands:');
+  console.log('  !say <channel_id> <message>  Send a message as Tree');
+  console.log('  !help                         Show terminal commands');
+  terminal.on('line', async function (line) {
+    const input = line.trim();
+    if (!input) return;
+    if (input === '!help') {
+      console.log('Usage: !say <channel_id> <message>');
+      console.log('Example: !say 123456789012345678 Hello from Tree!');
+      return;
+    }
+    if (input === '!say' || input.startsWith('!say ')) {
+      const match = input.match(/^!say\s+(\S+)\s+([\s\S]+)$/);
+      if (!match) {
+        console.log('Usage: !say <channel_id> <message>');
+        return;
+      }
+      const channelId = match[1].replace(/[<#>]/g, '');
+      const message = match[2].trim();
+      if (!/^\d{5,30}$/.test(channelId)) {
+        console.log('Invalid channel ID. Use the channel ID or a channel mention.');
+        return;
+      }
+      if (!message) {
+        console.log('Please include a message to send.');
+        return;
+      }
+      try {
+        await postMessage(channelId, message);
+        console.log('🌳 Message sent to channel ' + channelId + '.');
+      } catch (error) {
+        console.error('Could not send message:', error.message);
+      }
+      return;
+    }
+    console.log('Unknown terminal command. Type !help.');
+  });
+}
+
 async function start() {
   console.log('🌳 Starting Tree...');
+  startTerminalCommands();
   botInfo = await api('/bot/me');
   if (!botInfo || !botInfo.app || !botInfo.app.id) {
     throw new Error('The /api/bot/me response did not include app.id. Check your token and LinkupHQ URL.');

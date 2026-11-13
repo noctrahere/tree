@@ -158,6 +158,13 @@ const commands = [
   { name: 'welcome-off', description: 'Disable welcome messages in this server' },
   { name: 'welcome-test', description: 'Preview this server’s welcome message' },
   { name: 'goodbye-set', description: 'Set this server’s goodbye channel', options: [{ name: 'channel', description: 'Channel ID for goodbye messages', required: true }] },
+  { name: 'logs-set', description: 'Set this server’s activity log channel', options: [{ name: 'channel', description: 'Channel ID for logs', required: true }] },
+  { name: 'logs-off', description: 'Disable activity logging in this server' },
+  { name: 'logs-test', description: 'Send a test log message' },
+  { name: 'announce', description: 'Send an announcement to a channel', options: [{ name: 'channel', description: 'Destination channel ID', required: true }, { name: 'text', description: 'Announcement text', required: true }] },
+  { name: 'react', description: 'Toggle a reaction on a message', options: [{ name: 'message', description: 'Message ID', required: true }, { name: 'emoji', description: 'Emoji to react with', required: true }] },
+  { name: 'pin', description: 'Pin a message', options: [{ name: 'message', description: 'Message ID', required: true }] },
+  { name: 'unpin', description: 'Unpin a message', options: [{ name: 'message', description: 'Message ID', required: true }] },
   { name: 'goodbye-off', description: 'Disable goodbye messages in this server' },
 ];
 
@@ -184,7 +191,9 @@ async function handleInteraction(event) {
           '🌳 **Tree — All-in-one LinkupHQ bot**\n' +
           '/help — Show commands\n/ping — Check bot status\n/echo text — Repeat a message\n' +
           '/roll sides — Roll a dice\n/about — About Tree\n/server — Server information\n\n' +
-          'More moderation, welcome, tickets and leveling features are planned.', true);
+          '/welcome-set, /welcome-off — Configure welcome messages\\n/goodbye-set, /goodbye-off — Configure departure messages\\n' +
+          '/logs-set, /logs-off, /logs-test — Configure activity logs\\n/announce channel text — Send an announcement\\n' +
+          '/react message emoji — Toggle a reaction\\n/pin message and /unpin message — Manage pins', true);
         break;
       case 'echo': {
         const text = String(getOption(options, 'text', event.text || '')).trim();
@@ -253,6 +262,70 @@ async function handleInteraction(event) {
         await reply(event.id, 'Goodbye messages have been disabled for this server.', true);
         break;
       }
+      case 'logs-set': {
+        if (!event.serverId) { await reply(event.id, 'This command can only be used inside a server.', true); break; }
+        const channelId = String(optionText(options, 'channel', '')).trim().replace(/[<#>]/g, '');
+        if (!/^\\d{5,30}$/.test(channelId)) {
+          await reply(event.id, 'Please provide a valid channel ID (or mention the channel).', true);
+          break;
+        }
+        settingsFor(event.serverId).logChannelId = channelId;
+        await saveSettings(event.serverId);
+        await reply(event.id, '📋 Activity logging is now enabled in <#' + channelId + '>.', true);
+        break;
+      }
+      case 'logs-off': {
+        if (!event.serverId) { await reply(event.id, 'This command can only be used inside a server.', true); break; }
+        delete settingsFor(event.serverId).logChannelId;
+        await saveSettings(event.serverId);
+        await reply(event.id, 'Activity logging has been disabled for this server.', true);
+        break;
+      }
+      case 'logs-test': {
+        if (!event.serverId) { await reply(event.id, 'This command can only be used inside a server.', true); break; }
+        const settings = settingsFor(event.serverId);
+        if (!settings.logChannelId) { await reply(event.id, 'No log channel is configured. Use /logs-set first.', true); break; }
+        await postMessage(settings.logChannelId, '📋 **Tree logging test** — activity logs are configured correctly.');
+        await reply(event.id, 'Sent a test log message.', true);
+        break;
+      }
+      case 'announce': {
+        const channelId = String(optionText(options, 'channel', '')).trim().replace(/[<#>]/g, '');
+        const text = String(getOption(options, 'text', '')).trim();
+        if (!/^\\d{5,30}$/.test(channelId) || !text) {
+          await reply(event.id, 'Provide a valid channel and announcement text.', true);
+          break;
+        }
+        await postMessage(channelId, '📢 **Announcement**\\n' + text);
+        await reply(event.id, 'Announcement sent to <#' + channelId + '>.', true);
+        break;
+      }
+      case 'react': {
+        const messageId = String(getOption(options, 'message', '')).trim();
+        const emoji = String(getOption(options, 'emoji', '')).trim();
+        if (!/^\\d{5,30}$/.test(messageId) || !emoji || emoji.length > 100) {
+          await reply(event.id, 'Provide a valid message ID and emoji.', true);
+          break;
+        }
+        await api('/messages/' + encodeURIComponent(messageId) + '/reactions', {
+          method: 'PUT', body: JSON.stringify({ emoji }),
+        });
+        await reply(event.id, 'Added/toggled ' + emoji + ' on that message.', true);
+        break;
+      }
+      case 'pin':
+      case 'unpin': {
+        const messageId = String(getOption(options, 'message', '')).trim();
+        if (!/^\\d{5,30}$/.test(messageId)) {
+          await reply(event.id, 'Please provide a valid message ID.', true);
+          break;
+        }
+        await api('/messages/' + encodeURIComponent(messageId) + '/pin', {
+          method: 'PUT', body: JSON.stringify({ pinned: command === 'pin' }),
+        });
+        await reply(event.id, command === 'pin' ? '📌 Message pinned.' : 'Message unpinned.', true);
+        break;
+      }
       case 'setup': {
         if (!event.serverId) {
           await reply(event.id, '⚙️ The setup panel can only be opened inside a server.', true);
@@ -270,8 +343,9 @@ async function handleInteraction(event) {
           '🚪 **GOODBYE**\n' +
           'Channel: ' + channel(settings.goodbyeChannelId) + '\n' +
           'Commands: `/goodbye-set`, `/goodbye-off`\n\n' +
-          '📋 **LOGGING**\n' +
-          '⚪ Not available yet\n\n' +
+                    '📋 **ACTIVITY LOGS**\\n' +
+          'Channel: ' + channel(settings.logChannelId) + '\\n' +
+          'Commands: `/logs-set`, `/logs-off`, `/logs-test`\\n\\n' +
           '✅ **VERIFICATION**\n' +
           '⚪ Not available yet\n\n' +
           '🎫 **TICKETS**\n' +
@@ -316,6 +390,20 @@ async function handleEvent(name, event) {
     console.log('🌳 Tree connected to the LinkupHQ event stream.');
     return;
   }
+  if (name === 'message_create' || name === 'message_update') {
+    if (botInfo && botInfo.user && event.authorId === botInfo.user.id) return;
+    const serverId = findServerForChannel(event.channelId);
+    const actor = event.authorId ? '`' + event.authorId + '`' : 'Unknown member';
+    const label = name === 'message_create' ? '📝 **Message sent**' : '✏️ **Message edited**';
+    await writeActivityLog(serverId, event.channelId, label + ' in <#' + event.channelId + '> by ' + actor + '.');
+    return;
+  }
+  if (name === 'message_delete') {
+    const serverId = findServerForChannel(event.channelId);
+    await writeActivityLog(serverId, event.channelId,
+      '🗑️ **Message deleted** in <#' + event.channelId + '>. Message ID: `' + (event.id || 'unknown') + '`');
+    return;
+  }
   if (name === 'interaction_create') {
     await handleInteraction(event);
     return;
@@ -336,7 +424,7 @@ async function handleEvent(name, event) {
   }
   if (name === 'member_leave') {
     const user = event.user || {};
-    const nameText = displayName(user);
+    const nameText = Object.keys(user).length ? displayName(user) : (event.userId || 'A member');
     const serverId = event.serverId;
     console.log('Member left:', nameText, 'in server', serverId || 'unknown');
     const settings = serverId && serverSettings[serverId];
@@ -350,6 +438,24 @@ async function handleEvent(name, event) {
   }
   if (name === 'server_join') {
     console.log('Tree was added to a server:', event.name || event.id || 'unknown');
+  }
+}
+
+function findServerForChannel(channelId) {
+  if (!botInfo || !Array.isArray(botInfo.servers)) return null;
+  for (const server of botInfo.servers) {
+    if (Array.isArray(server.channels) && server.channels.some((channel) => channel.id === channelId)) return server.id;
+  }
+  return null;
+}
+
+async function writeActivityLog(serverId, channelId, content) {
+  const settings = serverId && serverSettings[serverId];
+  if (!settings || !settings.logChannelId || settings.logChannelId === channelId) return;
+  try {
+    await postMessage(settings.logChannelId, content);
+  } catch (error) {
+    console.error('Could not write activity log for server ' + serverId + ':', error.message);
   }
 }
 

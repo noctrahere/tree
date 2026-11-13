@@ -13,11 +13,14 @@ Tree is an all-in-one bot for LinkupHQ. This is the first runnable foundation, b
 - /roll — roll a dice
 - /about — information about Tree
 - /server — show server details
-- /setup — show a Panda-style, per-server setup overview for welcome, goodbye and planned modules
+- /setup — show each server’s configured welcome, goodbye and activity-log channels
 - Per-server welcome channels with `/welcome-set`, `/welcome-off` and `/welcome-test`
 - Per-server goodbye channels with `/goodbye-set` and `/goodbye-off`
-- Automatically sends a welcome message when a member joins (Server Members intent required)
-- Stores each server’s settings separately in `tree-data.json`
+- Per-server activity logs with `/logs-set`, `/logs-off` and `/logs-test` (message create/edit/delete and member join/leave events)
+- `/announce` — send an announcement to a channel
+- `/react` — toggle a reaction on a message
+- `/pin` and `/unpin` — manage message pins
+- Settings persist in MySQL when configured, otherwise in `tree-data.json`
 
 ## Requirements
 
@@ -33,7 +36,7 @@ Tree is an all-in-one bot for LinkupHQ. This is the first runnable foundation, b
 4. Set LINKUP_URL to the LinkupHQ site URL you use.
 5. Run node bot.js.
 
-The project intentionally has no dependencies. Node.js provides the HTTP and streaming APIs used by the bot.
+Node.js provides the HTTP and streaming APIs. The `mysql2` package is used only when MySQL persistence is configured.
 
 For macOS/Linux, you can also start it with environment variables:
 
@@ -63,11 +66,11 @@ In the Developer Portal:
 3. Enable Message Content only if you later add message-reading features.
 4. Invite Tree with the permissions it needs. For this starter, it needs View Channels and Send Messages.
 
-Run `/setup` in a server to view its Panda-style configuration overview. The panel shows each module’s current status and the commands available for configured features. LinkupHQ’s documented bot API does not currently expose interactive button/select-menu callbacks, so this is a text-based panel rather than Panda’s clickable Discord panel.\n\nTree is designed to be installed in multiple servers. Each server has its own welcome channel. In a server, run `/welcome-set` and provide the channel ID (or channel mention), `/welcome-test` to preview it, and `/welcome-off` to disable it. Configure departure messages with `/goodbye-set` and disable them with `/goodbye-off`. Enable the Server Members intent in the LinkupHQ Developer Portal for join events. Settings are stored in `tree-data.json` on the bot host; keep that file on persistent storage when deploying so settings survive restarts and redeployments.
+Run `/setup` in a server to view its per-server configuration. LinkupHQ’s documented bot API does not currently expose interactive button/select-menu callbacks, so this is a text-based panel rather than Panda’s clickable Discord panel.\n\nTree is designed to be installed in multiple servers. Each server has its own welcome channel. In a server, run `/welcome-set` and provide the channel ID (or channel mention), `/welcome-test` to preview it, and `/welcome-off` to disable it. Configure departure messages with `/goodbye-set` and disable them with `/goodbye-off`. Enable the Server Members intent in the LinkupHQ Developer Portal for join events. Settings are stored in `tree-data.json` on the bot host; keep that file on persistent storage when deploying so settings survive restarts and redeployments.
 
 ## Important API limitations
 
-This starter only implements actions documented by the LinkupHQ Bot API. The currently documented reference covers slash commands, messages, reactions, pins, typing and events. It does not document dedicated endpoints for ban, kick, timeout, role assignment, ticket creation or poll creation, so those features are not falsely advertised as working yet.
+Tree only implements actions documented by the LinkupHQ Bot API. The current reference does not document dedicated endpoints for ban, kick, timeout, role assignment, ticket creation, giveaways or poll creation, so those features are not advertised as working. Activity logging records event metadata (not message contents).
 
 ## Security
 

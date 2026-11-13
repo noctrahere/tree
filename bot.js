@@ -191,9 +191,9 @@ async function handleInteraction(event) {
           '🌳 **Tree — All-in-one LinkupHQ bot**\n' +
           '/help — Show commands\n/ping — Check bot status\n/echo text — Repeat a message\n' +
           '/roll sides — Roll a dice\n/about — About Tree\n/server — Server information\n\n' +
-          '/welcome-set, /welcome-off — Configure welcome messages\\n/goodbye-set, /goodbye-off — Configure departure messages\\n' +
-          '/logs-set, /logs-off, /logs-test — Configure activity logs\\n/announce channel text — Send an announcement\\n' +
-          '/react message emoji — Toggle a reaction\\n/pin message and /unpin message — Manage pins', true);
+          '/welcome-set, /welcome-off — Configure welcome messages\n/goodbye-set, /goodbye-off — Configure departure messages\n' +
+          '/logs-set, /logs-off, /logs-test — Configure activity logs\n/announce channel text — Send an announcement\n' +
+          '/react message emoji — Toggle a reaction\n/pin message and /unpin message — Manage pins', true);
         break;
       case 'echo': {
         const text = String(getOption(options, 'text', event.text || '')).trim();
@@ -265,7 +265,7 @@ async function handleInteraction(event) {
       case 'logs-set': {
         if (!event.serverId) { await reply(event.id, 'This command can only be used inside a server.', true); break; }
         const channelId = String(optionText(options, 'channel', '')).trim().replace(/[<#>]/g, '');
-        if (!/^\\d{5,30}$/.test(channelId)) {
+        if (!/^\d{5,30}$/.test(channelId)) {
           await reply(event.id, 'Please provide a valid channel ID (or mention the channel).', true);
           break;
         }
@@ -292,18 +292,18 @@ async function handleInteraction(event) {
       case 'announce': {
         const channelId = String(optionText(options, 'channel', '')).trim().replace(/[<#>]/g, '');
         const text = String(getOption(options, 'text', '')).trim();
-        if (!/^\\d{5,30}$/.test(channelId) || !text) {
+        if (!/^\d{5,30}$/.test(channelId) || !text) {
           await reply(event.id, 'Provide a valid channel and announcement text.', true);
           break;
         }
-        await postMessage(channelId, '📢 **Announcement**\\n' + text);
+        await postMessage(channelId, '📢 **Announcement**\n' + text);
         await reply(event.id, 'Announcement sent to <#' + channelId + '>.', true);
         break;
       }
       case 'react': {
         const messageId = String(getOption(options, 'message', '')).trim();
         const emoji = String(getOption(options, 'emoji', '')).trim();
-        if (!/^\\d{5,30}$/.test(messageId) || !emoji || emoji.length > 100) {
+        if (!/^\d{5,30}$/.test(messageId) || !emoji || emoji.length > 100) {
           await reply(event.id, 'Provide a valid message ID and emoji.', true);
           break;
         }
@@ -316,7 +316,7 @@ async function handleInteraction(event) {
       case 'pin':
       case 'unpin': {
         const messageId = String(getOption(options, 'message', '')).trim();
-        if (!/^\\d{5,30}$/.test(messageId)) {
+        if (!/^\d{5,30}$/.test(messageId)) {
           await reply(event.id, 'Please provide a valid message ID.', true);
           break;
         }
@@ -343,9 +343,9 @@ async function handleInteraction(event) {
           '🚪 **GOODBYE**\n' +
           'Channel: ' + channel(settings.goodbyeChannelId) + '\n' +
           'Commands: `/goodbye-set`, `/goodbye-off`\n\n' +
-                    '📋 **ACTIVITY LOGS**\\n' +
-          'Channel: ' + channel(settings.logChannelId) + '\\n' +
-          'Commands: `/logs-set`, `/logs-off`, `/logs-test`\\n\\n' +
+          '📋 **ACTIVITY LOGS**\n' +
+          'Channel: ' + channel(settings.logChannelId) + '\n' +
+          'Commands: `/logs-set`, `/logs-off`, `/logs-test`\n\n' +
           '✅ **VERIFICATION**\n' +
           '⚪ Not available yet\n\n' +
           '🎫 **TICKETS**\n' +

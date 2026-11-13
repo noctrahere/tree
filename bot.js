@@ -421,6 +421,7 @@ async function handleEvent(name, event) {
         console.error('Could not send welcome message for server ' + serverId + ':', error.message);
       }
     }
+    await writeActivityLog(serverId, null, '👋 **Member joined:** ' + nameText.replace(/[@\\*_~`|]/g, ''));
   }
   if (name === 'member_leave') {
     const user = event.user || {};
@@ -435,6 +436,7 @@ async function handleEvent(name, event) {
         console.error('Could not send goodbye message for server ' + serverId + ':', error.message);
       }
     }
+    await writeActivityLog(serverId, null, '🚪 **Member left:** ' + nameText.replace(/[@\\*_~`|]/g, ''));
   }
   if (name === 'server_join') {
     console.log('Tree was added to a server:', event.name || event.id || 'unknown');

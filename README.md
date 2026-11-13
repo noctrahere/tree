@@ -74,3 +74,16 @@ This starter only implements actions documented by the LinkupHQ Bot API. The cur
 - Never commit .env.
 - Never paste your bot token into GitHub, issues, screenshots or chat.
 - If a token is exposed, reset it in the LinkupHQ Developer Portal immediately.
+
+
+## MySQL persistence
+
+Tree uses MySQL when `DB_HOST` is configured. Set these environment variables in your hosting panel:
+
+- `DB_HOST` — MySQL hostname (without the port)
+- `DB_PORT` — MySQL port
+- `DB_NAME` — database name
+- `DB_USER` — database username
+- `DB_PASSWORD` — database password
+
+On startup, Tree creates the `tree_server_settings` table if needed and loads each server's settings. Changes to welcome and goodbye configuration are saved to MySQL. If `DB_HOST` is omitted, Tree keeps using the local `tree-data.json` file for local development.

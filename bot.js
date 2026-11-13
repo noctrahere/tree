@@ -578,48 +578,92 @@ async function connectStream() {
 }
 
 function startTerminalCommands() {
-  if (!process.stdin.isTTY) return;
+  // Hosting panels often provide stdin without marking it as a TTY.
+  if (!process.stdin || !process.stdin.readable) {
+    console.warn('Console input is unavailable in this hosting environment.');
+    return;
+  }
   const readline = require('node:readline');
-  const terminal = readline.createInterface({ input: process.stdin, output: process.stdout });
-  console.log('\nTerminal commands:');
-  console.log('  !say <channel_id> <message>  Send a message as Tree');
-  console.log('  !help                         Show terminal commands');
+  const terminal = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
+  console.log('\n🌳 Tree console commands (prefix ! is optional):');
+  console.log('  help                         Show this help');
+  console.log('  status                       Show connection and server status');
+  console.log('  servers                      List servers Tree is in');
+  console.log('  channels <server_id>         List channels in a server');
+  console.log('  say <channel_id> <message>   Send a message to a channel');
+  console.log('  dm <dm_channel_id> <message> Send to an existing DM channel');
+  console.log('  refresh                      Refresh server/channel list from Linkup');
+
+  let commandBusy = false;
   terminal.on('line', async function (line) {
-    const input = line.trim();
+    const input = line.trim().replace(/^!/, '');
     if (!input) return;
-    if (input === '!help') {
-      console.log('Usage: !say <channel_id> <message>');
-      console.log('Example: !say 123456789012345678 Hello from Tree!');
+    if (commandBusy) { console.log('A console command is still running; please wait.'); return; }
+
+    const firstSpace = input.search(/\s/);
+    const command = (firstSpace === -1 ? input : input.slice(0, firstSpace)).toLowerCase();
+    const args = firstSpace === -1 ? '' : input.slice(firstSpace).trim();
+
+    if (command === 'help') {
+      console.log('Commands: help | status | servers | channels <server_id> | say <channel_id> <message> | dm <dm_channel_id> <message> | refresh');
+      console.log('Example: say 123456789012345678 Hello from Tree!');
+      console.log('DM note: Linkup API docs do not describe creating/opening a DM. dm requires an existing DM channel ID.');
       return;
     }
-    if (input === '!say' || input.startsWith('!say ')) {
-      const match = input.match(/^!say\s+(\S+)\s+([\s\S]+)$/);
+    if (command === 'status') {
+      console.log('Bot: ' + (botInfo ? 'authenticated' : 'not authenticated'));
+      console.log('Stream: ' + (streamController && !streamController.signal.aborted ? 'connected/connecting' : 'not connected'));
+      console.log('Servers: ' + (botInfo && Array.isArray(botInfo.servers) ? botInfo.servers.length : 0));
+      console.log('Storage: ' + (databasePool ? 'MySQL' : 'local JSON'));
+      return;
+    }
+    if (command === 'servers') {
+      const servers = botInfo && Array.isArray(botInfo.servers) ? botInfo.servers : [];
+      if (!servers.length) { console.log('No servers returned by Linkup.'); return; }
+      for (const server of servers) console.log('- ' + (server.name || 'Unnamed server') + ' | ID: ' + server.id);
+      return;
+    }
+    if (command === 'channels') {
+      const serverId = args.split(/\s+/)[0];
+      const server = botInfo && Array.isArray(botInfo.servers)
+        ? botInfo.servers.find((item) => String(item.id) === String(serverId)) : null;
+      if (!server) { console.log('Server not found. Run "servers" to list IDs.'); return; }
+      const channels = Array.isArray(server.channels) ? server.channels : [];
+      if (!channels.length) { console.log('No channels visible to Tree in this server.'); return; }
+      for (const channel of channels) console.log('- #' + (channel.name || 'unnamed') + ' | ' + (channel.type || 'channel') + ' | ID: ' + channel.id);
+      return;
+    }
+    if (command === 'refresh') {
+      commandBusy = true;
+      try {
+        botInfo = await api('/bot/me');
+        console.log('Refreshed. Tree is in ' + (Array.isArray(botInfo.servers) ? botInfo.servers.length : 0) + ' server(s).');
+      } catch (error) { console.error('Refresh failed:', error.message); }
+      finally { commandBusy = false; }
+      return;
+    }
+    if (command === 'say' || command === 'dm') {
+      const match = args.match(/^(\S+)\s+([\s\S]+)$/);
       if (!match) {
-        console.log('Usage: !say <channel_id> <message>');
+        console.log(command === 'dm' ? 'Usage: dm <existing_dm_channel_id> <message>' : 'Usage: say <channel_id> <message>');
         return;
       }
       const channelId = match[1].replace(/[<#>]/g, '');
       const message = match[2].trim();
-      if (!/^\d{5,30}$/.test(channelId)) {
-        console.log('Invalid channel ID. Use the channel ID or a channel mention.');
-        return;
-      }
-      if (!message) {
-        console.log('Please include a message to send.');
-        return;
-      }
+      if (!/^\d{5,30}$/.test(channelId)) { console.log('Invalid channel ID.'); return; }
+      if (!message) { console.log('Please include a message.'); return; }
+      commandBusy = true;
       try {
         await postMessage(channelId, message);
-        console.log('🌳 Message sent to channel ' + channelId + '.');
-      } catch (error) {
-        console.error('Could not send message:', error.message);
-      }
+        console.log('🌳 Message sent to ' + (command === 'dm' ? 'DM channel ' : 'channel ') + channelId + '.');
+      } catch (error) { console.error('Could not send message:', error.message); }
+      finally { commandBusy = false; }
       return;
     }
-    console.log('Unknown terminal command. Type !help.');
+    console.log('Unknown command. Type help.');
   });
+  process.stdin.resume();
 }
-
 async function start() {
   console.log('🌳 Starting Tree...');
   await initStorage();

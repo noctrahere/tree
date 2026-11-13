@@ -37,17 +37,77 @@ let streamController = null;
 
 const DATA_FILE = process.env.TREE_DATA_FILE || './tree-data.json';
 let serverSettings = {};
-try {
-  serverSettings = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-  if (!serverSettings || typeof serverSettings !== 'object' || Array.isArray(serverSettings)) serverSettings = {};
-} catch (error) {
-  if (error.code !== 'ENOENT') console.error('Could not load Tree settings:', error.message);
+let databasePool = null;
+
+async function initStorage() {
+  if (!process.env.DB_HOST) {
+    console.log('No DB_HOST configured; using local JSON storage.');
+    try {
+      serverSettings = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+      if (!serverSettings || typeof serverSettings !== 'object' || Array.isArray(serverSettings)) serverSettings = {};
+    } catch (error) {
+      if (error.code !== 'ENOENT') console.error('Could not load Tree settings:', error.message);
+    }
+    return;
+  }
+
+  const required = ['DB_NAME', 'DB_USER', 'DB_PASSWORD'];
+  const missing = required.filter((key) => !process.env[key]);
+  if (missing.length) throw new Error('Missing MySQL environment variables: ' + missing.join(', '));
+
+  const mysql = require('mysql2/promise');
+  databasePool = mysql.createPool({
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT || 3306),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    waitForConnections: true,
+    connectionLimit: 5,
+    queueLimit: 0,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10000,
+    connectTimeout: 15000,
+  });
+
+  await databasePool.execute(`
+    CREATE TABLE IF NOT EXISTS tree_server_settings (
+      server_id VARCHAR(64) NOT NULL PRIMARY KEY,
+      settings_json LONGTEXT NOT NULL,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  `);
+
+  const [rows] = await databasePool.execute(
+    'SELECT server_id, settings_json FROM tree_server_settings'
+  );
+  serverSettings = {};
+  for (const row of rows) {
+    try {
+      const parsed = JSON.parse(row.settings_json);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        serverSettings[row.server_id] = parsed;
+      }
+    } catch (error) {
+      console.error('Could not parse settings for server ' + row.server_id + ':', error.message);
+    }
+  }
+  console.log('🌳 MySQL connected; loaded settings for ' + rows.length + ' server(s).');
 }
-function saveSettings() {
+
+async function saveSettings(serverId) {
+  if (databasePool) {
+    await databasePool.execute(
+      'INSERT INTO tree_server_settings (server_id, settings_json) VALUES (?, ?) ON DUPLICATE KEY UPDATE settings_json = VALUES(settings_json)',
+      [String(serverId), JSON.stringify(serverSettings[serverId] || {})]
+    );
+    return;
+  }
   const tempFile = DATA_FILE + '.tmp';
   fs.writeFileSync(tempFile, JSON.stringify(serverSettings, null, 2));
   fs.renameSync(tempFile, DATA_FILE);
 }
+
 function settingsFor(serverId) {
   if (!serverId) return null;
   if (!serverSettings[serverId]) serverSettings[serverId] = {};
@@ -151,7 +211,7 @@ async function handleInteraction(event) {
         }
         const settings = settingsFor(event.serverId);
         settings.welcomeChannelId = channelId;
-        saveSettings();
+        await saveSettings(event.serverId);
         await reply(event.id, '🌳 Welcome messages are now enabled in <#' + channelId + '> for this server.', true);
         break;
       }
@@ -159,7 +219,7 @@ async function handleInteraction(event) {
         if (!event.serverId) { await reply(event.id, 'This command can only be used inside a server.', true); break; }
         const settings = settingsFor(event.serverId);
         delete settings.welcomeChannelId;
-        saveSettings();
+        await saveSettings(event.serverId);
         await reply(event.id, 'Welcome messages have been disabled for this server.', true);
         break;
       }
@@ -182,14 +242,14 @@ async function handleInteraction(event) {
           break;
         }
         settingsFor(event.serverId).goodbyeChannelId = channelId;
-        saveSettings();
+        await saveSettings(event.serverId);
         await reply(event.id, '🌳 Goodbye messages are now enabled in <#' + channelId + '> for this server.', true);
         break;
       }
       case 'goodbye-off': {
         if (!event.serverId) { await reply(event.id, 'This command can only be used inside a server.', true); break; }
         delete settingsFor(event.serverId).goodbyeChannelId;
-        saveSettings();
+        await saveSettings(event.serverId);
         await reply(event.id, 'Goodbye messages have been disabled for this server.', true);
         break;
       }
@@ -396,6 +456,7 @@ function startTerminalCommands() {
 
 async function start() {
   console.log('🌳 Starting Tree...');
+  await initStorage();
   startTerminalCommands();
   botInfo = await api('/bot/me');
   if (!botInfo || !botInfo.app || !botInfo.app.id) {
@@ -415,6 +476,7 @@ function shutdown(signal) {
   stopping = true;
   console.log('\nReceived ' + signal + '. Shutting down Tree...');
   if (streamController) streamController.abort();
+  if (databasePool) databasePool.end().catch((error) => console.error('MySQL shutdown error:', error.message));
 }
 process.on('SIGINT', function () { shutdown('SIGINT'); });
 process.on('SIGTERM', function () { shutdown('SIGTERM'); });

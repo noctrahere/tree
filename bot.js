@@ -165,6 +165,10 @@ const commands = [
   { name: 'react', description: 'Toggle a reaction on a message', options: [{ name: 'message', description: 'Message ID', required: true }, { name: 'emoji', description: 'Emoji to react with', required: true }] },
   { name: 'pin', description: 'Pin a message', options: [{ name: 'message', description: 'Message ID', required: true }] },
   { name: 'unpin', description: 'Unpin a message', options: [{ name: 'message', description: 'Message ID', required: true }] },
+  { name: 'history', description: 'Show recent messages in a channel', options: [{ name: 'channel', description: 'Channel ID', required: true }, { name: 'limit', description: 'Number of messages (1–20)', required: false }] },
+  { name: 'edit', description: 'Edit a message sent by Tree', options: [{ name: 'message', description: 'Message ID', required: true }, { name: 'text', description: 'New message text', required: true }] },
+  { name: 'delete', description: 'Delete a message (own message or Manage Messages)', options: [{ name: 'message', description: 'Message ID', required: true }] },
+  { name: 'purge', description: 'Delete recent messages in a channel (requires Manage Messages)', options: [{ name: 'channel', description: 'Channel ID', required: true }, { name: 'limit', description: 'How many recent messages (1–20)', required: true }] },
   { name: 'goodbye-off', description: 'Disable goodbye messages in this server' },
 ];
 
@@ -324,6 +328,60 @@ async function handleInteraction(event) {
           method: 'PUT', body: JSON.stringify({ pinned: command === 'pin' }),
         });
         await reply(event.id, command === 'pin' ? '📌 Message pinned.' : 'Message unpinned.', true);
+        break;
+      }
+      case 'history': {
+        const channelId = String(optionText(options, 'channel', '')).trim().replace(/[<#>]/g, '');
+        const rawLimit = Number(getOption(options, 'limit', 10));
+        const limit = Number.isFinite(rawLimit) ? Math.max(1, Math.min(20, Math.floor(rawLimit))) : 10;
+        if (!/^\d{5,30}$/.test(channelId)) { await reply(event.id, 'Please provide a valid channel.', true); break; }
+        const result = await api('/channels/' + encodeURIComponent(channelId) + '/messages?limit=' + limit);
+        const messages = Array.isArray(result) ? result : (result && Array.isArray(result.messages) ? result.messages : []);
+        if (!messages.length) { await reply(event.id, 'No messages were returned. Check Tree can view the channel and read message history.', true); break; }
+        const lines = messages.slice(0, limit).map((m) => {
+          const author = m.authorId || 'Unknown user';
+          const content = String(m.content || '[message content unavailable]').replace(/\s+/g, ' ').slice(0, 180);
+          return '• `' + author + '` — ' + content;
+        });
+        await reply(event.id, '🕘 **Recent messages in <#' + channelId + '>**\n' + lines.join('\n'), true);
+        break;
+      }
+      case 'edit': {
+        const messageId = String(getOption(options, 'message', '')).trim();
+        const content = String(optionText(options, 'text', '')).trim();
+        if (!/^\d{5,30}$/.test(messageId) || !content) { await reply(event.id, 'Provide a valid message ID and new text.', true); break; }
+        await api('/messages/' + encodeURIComponent(messageId), { method: 'PATCH', body: JSON.stringify({ content: content.slice(0, 4000) }) });
+        await reply(event.id, '✏️ Tree message edited.', true);
+        break;
+      }
+      case 'delete': {
+        const messageId = String(getOption(options, 'message', '')).trim();
+        if (!/^\d{5,30}$/.test(messageId)) { await reply(event.id, 'Please provide a valid message ID.', true); break; }
+        await api('/messages/' + encodeURIComponent(messageId), { method: 'DELETE' });
+        await reply(event.id, '🗑️ Message deleted.', true);
+        break;
+      }
+      case 'purge': {
+        const channelId = String(optionText(options, 'channel', '')).trim().replace(/[<#>]/g, '');
+        const rawLimit = Number(getOption(options, 'limit', 0));
+        const limit = Number.isFinite(rawLimit) ? Math.floor(rawLimit) : 0;
+        if (!/^\d{5,30}$/.test(channelId) || limit < 1 || limit > 20) {
+          await reply(event.id, 'Provide a valid channel and a limit from 1 to 20.', true);
+          break;
+        }
+        const result = await api('/channels/' + encodeURIComponent(channelId) + '/messages?limit=' + limit);
+        const messages = Array.isArray(result) ? result : (result && Array.isArray(result.messages) ? result.messages : []);
+        let deleted = 0;
+        for (const message of messages.slice(0, limit)) {
+          if (!message || !message.id) continue;
+          try {
+            await api('/messages/' + encodeURIComponent(message.id), { method: 'DELETE' });
+            deleted++;
+          } catch (error) {
+            console.warn('Could not delete message ' + message.id + ': ' + error.message);
+          }
+        }
+        await reply(event.id, '🧹 Deleted ' + deleted + ' of ' + Math.min(messages.length, limit) + ' requested messages. Tree needs Manage Messages to delete other members’ messages.', true);
         break;
       }
       case 'setup': {
